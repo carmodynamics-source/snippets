@@ -1,68 +1,132 @@
 <?php
-// Step 1: Define database connection settings
 $host = 'localhost';
-$user = 'root';
-$pass = ''; // Change this if your MySQL has a password
-$dbname = 'tech282';
+$user = ''; // your login name
+$pass = ''; // your pw was emailed earlier in the semester
+$dbname = ''; // your login name again
 
-// Step 2: Connect to MySQL server (not selecting a database yet)
 $conn = new mysqli($host, $user, $pass);
 
-// Check if the connection works
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Step 3: Create the database if it doesn't exist
-$conn->query("CREATE DATABASE IF NOT EXISTS $dbname");
-
-// Step 4: Select the database
+$conn->query("CREATE DATABASE IF NOT EXISTS `$dbname`");
 $conn->select_db($dbname);
 
-// Step 5: Create the Contacts table if it doesn't already exist
-$createTableSQL = "CREATE TABLE IF NOT EXISTS Contacts (
-    id INT AUTO_INCREMENT PRIMARY KEY,           // Auto-incrementing ID
-    first_name VARCHAR(50),                      // First name (max 50 characters)
-    last_name VARCHAR(50),                       // Last name (max 50 characters)
-    phone VARCHAR(20),                           // Phone number (up to 20 characters)
-    email VARCHAR(100)                           // Email address (max 100 characters)
+/* -------------------------------------------------------
+   DROP ALL TABLES TO RESET SCHEMA CLEANLY
+------------------------------------------------------- */
+$conn->query("DROP TABLE IF EXISTS sales");
+$conn->query("DROP TABLE IF EXISTS product_type");
+$conn->query("DROP TABLE IF EXISTS products");
+$conn->query("DROP TABLE IF EXISTS contacts");
+
+/* -------------------------------------------------------
+   Contacts Table
+------------------------------------------------------- */
+$createContactsSQL = "
+CREATE TABLE contacts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    email VARCHAR(100)
 )";
-$conn->query($createTableSQL);
+$conn->query($createContactsSQL);
 
-// Step 6: Open the CSV file
-$csvFile = fopen("contacts.csv", "r");  // Reads the file in read-only mode
-$rows = [];                             // Empty array to store rows
-$first = true;                          // Flag to skip the header row
+/* CSV Import */
+$csvFile = fopen("contacts.csv", "r");
+$first = true;
 
-// Step 7: Read the CSV file line by line
-while (($data = fgetcsv($csvFile)) !== FALSE) {
+while (($row = fgetcsv($csvFile)) !== FALSE) {
     if ($first) {
-        $first = false; // Skip the first row (headers)
+        $first = false;
         continue;
     }
-    $rows[] = $data; // Store each row in the array
-}
-fclose($csvFile); // Close the file after reading
 
-// Step 8: Loop through each row and insert into the database
-foreach ($rows as $row) {
-    // Escape data to prevent SQL injection
     $first_name = $conn->real_escape_string($row[0]);
-    $last_name = $conn->real_escape_string($row[1]);
-    $phone = $conn->real_escape_string($row[2]);
-    $email = $conn->real_escape_string($row[3]);
+    $last_name  = $conn->real_escape_string($row[1]);
+    $email      = $conn->real_escape_string($row[2]);
 
-    // Build the SQL INSERT statement
-    $sql = "INSERT INTO Contacts (first_name, last_name, phone, email)
-            VALUES ('$first_name', '$last_name', '$phone', '$email')";
-
-    // Execute the SQL query
-    $conn->query($sql);
+    $conn->query("
+        INSERT INTO contacts (first_name, last_name, email)
+        VALUES ('$first_name', '$last_name', '$email')
+    ");
 }
+fclose($csvFile);
 
-// Step 9: Final message to confirm import worked
-echo "Contacts imported successfully!";
+echo "Contacts imported.<br>";
 
-// Step 10: Close the connection to the database
+/* -------------------------------------------------------
+   Products Table
+------------------------------------------------------- */
+$createProductsSQL = "
+CREATE TABLE products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_title VARCHAR(255) NOT NULL,
+    product_descr TEXT NOT NULL,
+    product_price DECIMAL(10,2) NOT NULL,
+    product_image_url VARCHAR(255) NOT NULL
+)";
+$conn->query($createProductsSQL);
+
+$insertProductsSQL = "
+INSERT INTO products (product_title, product_descr, product_price, product_image_url) VALUES
+('ANCTOR Couches for Living Room',
+ 'Durable and Skin-Friendly: Made with a high-quality solid wood frame, built-in springs, and high-density sponge, it supports up to 1000 pounds.',
+ 79.99,
+ 'https://m.media-amazon.com/images/I/81Nvh2T35nL._AC_SL1500_.jpg'),
+
+('Wireless Earbuds, Bluetooth 5.4 Headphones Bass Stereo',
+ 'Dual 14.2mm drivers, high-resolution decoder, AAC/SBC audio coding.',
+ 21.99,
+ 'https://m.media-amazon.com/images/I/71sWRy5QxIL._AC_SL1500_.jpg'),
+
+('Iron Golf Club',
+ 'TaylorMade SiM 2 Max Iron Set Mens',
+ 589.99,
+ 'https://m.media-amazon.com/images/I/61pOId+mjyL._AC_SL1000_.jpg')
+";
+$conn->query($insertProductsSQL);
+
+/* -------------------------------------------------------
+   Product Type Table
+------------------------------------------------------- */
+$createProductTypeSQL = "
+CREATE TABLE product_type (
+    product_type_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_type VARCHAR(255) NOT NULL,
+    product_available VARCHAR(1) NOT NULL
+)";
+$conn->query($createProductTypeSQL);
+
+$conn->query("
+INSERT INTO product_type (product_type, product_available) VALUES
+('Furniture', 'y'),
+('Electronics', 'y'),
+('Sports Equipment', 'n')
+");
+
+/* -------------------------------------------------------
+   Sales Table
+------------------------------------------------------- */
+$createSalesTableSQL = "
+CREATE TABLE sales (
+    sales_id INT AUTO_INCREMENT PRIMARY KEY,
+    contact_id INT,
+    product_id INT,
+    sales_completed VARCHAR(3) NOT NULL,
+    FOREIGN KEY (contact_id) REFERENCES contacts(id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+)";
+$conn->query($createSalesTableSQL);
+
+$conn->query("
+INSERT INTO sales (contact_id, product_id, sales_completed) VALUES
+(1, 1, 'yes'),
+(2, 2, 'yes'),
+(3, 3, 'no')
+");
+
+echo "All sample data inserted.";
+
 $conn->close();
-?>
