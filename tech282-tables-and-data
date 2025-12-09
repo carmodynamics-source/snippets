@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Car Inventory Example</title>
+</head>
+
+<body>
+    <?php
+    require 'db/db.php';
+
+    // 1. Create tables only if they don't exist
+    $conn->query("CREATE TABLE IF NOT EXISTS tech_282_cars (
+        car_id INT AUTO_INCREMENT PRIMARY KEY,
+        brand VARCHAR(50) NOT NULL
+    )");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS tech_282_models (
+        model_id INT AUTO_INCREMENT PRIMARY KEY,
+        model_name VARCHAR(50) NOT NULL
+    )");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS tech_282_inventory (
+        inventory_id INT AUTO_INCREMENT PRIMARY KEY,
+        car_id INT NOT NULL,
+        model_id INT NOT NULL,
+        FOREIGN KEY (car_id) REFERENCES tech_282_cars(car_id),
+        FOREIGN KEY (model_id) REFERENCES tech_282_models(model_id)
+    )");
+
+    // 2. Insert sample cars if they don't already exist
+    $conn->query("INSERT IGNORE INTO tech_282_cars (brand) VALUES
+        ('Toyota'), ('Honda'), ('Ford'), ('Chevrolet'), ('Nissan')
+    ");
+
+    // 3. Insert sample models if they don't already exist
+    $conn->query("INSERT IGNORE INTO tech_282_models (model_name) VALUES
+        ('Corolla'), ('Camry'), ('Civic'), ('Accord'),
+        ('Focus'), ('Mustang'), ('Malibu'), ('Impala'),
+        ('Altima'), ('Sentra')
+    ");
+
+    // 4. Insert sample inventory 
+    $conn->query("INSERT IGNORE INTO tech_282_inventory (car_id, model_id) VALUES
+        (1,1), (1,2), (2,3), (2,4), (3,5), (3,6),
+        (4,7), (4,8), (5,9), (5,10),
+        (1,2), (3,6), (2,8)
+    ");
+
+    // 5. Query inventory with car and model names
+    $sql = "
+        SELECT tech_282_inventory.inventory_id, tech_282_cars.brand, tech_282_models.model_name
+        FROM tech_282_inventory
+        INNER JOIN tech_282_cars ON tech_282_inventory.car_id = tech_282_cars.car_id
+        INNER JOIN tech_282_models ON tech_282_inventory.model_id = tech_282_models.model_id
+        ORDER BY tech_282_inventory.inventory_id ASC
+    ";
+
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        echo "<h2>Inventory Table:</h2><ul>";
+
+        // fetch all rows as array
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
+
+        // loop with foreach instead of while
+        foreach ($rows as $row) {
+            echo "<li>Inventory ID: {$row['inventory_id']} - Car: {$row['brand']} - Model: {$row['model_name']}</li>";
+        }
+
+        echo "</ul>";
+    } else {
+        echo "No inventory records found.";
+    }
+
+    $conn->close();
+    ?>
+</body>
+
+</html>
