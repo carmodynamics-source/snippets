@@ -1,0 +1,440 @@
+<?php
+// Include the database connection file
+// This file must create a $conn MySQLi connection
+require 'db/db.php';
+
+// Turn on MySQLi error reporting so beginners can see clear errors
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+// -------------------------
+// INITIALIZE VARIABLES
+// INITIALIZE VARIABLES
+// INITIALIZE VARIABLES
+// INITIALIZE VARIABLES
+
+// These hold form values and errors
+// -------------------------
+$first_name = "";
+$last_name  = "";
+$email      = "";
+$department_id = "";
+$errors = [];
+
+
+// CREATE TABLES
+// CREATE TABLES
+// CREATE TABLES
+// CREATE TABLES
+
+// See deliverables on the HW Guidelines for this section.
+
+
+
+// -------------------------
+// HANDLE FORM SUBMISSION
+// HANDLE FORM SUBMISSION
+// HANDLE FORM SUBMISSION
+// HANDLE FORM SUBMISSION
+
+// This runs ONLY when the form is submitted via POST
+// === 'POST': note the strict equivalence
+// === evaluates to true only if both operands have the same value and the same data type
+// if it is false the form does not submit
+
+// -------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    // Get values from the form and remove extra spaces
+    $first_name = trim($_POST['first_name']);
+    $last_name  = trim($_POST['last_name']);
+    $email      = trim($_POST['email']);
+
+    // Department comes from the dropdown select
+    // ?? '' prevents an undefined index error: ?? '' means: "If this doesn’t exist, use an empty string."
+
+    $department_id = $_POST['department'] ?? '';
+
+    // -------------------------
+    // SERVER-SIDE VALIDATION
+    // SERVER-SIDE VALIDATION
+    // SERVER-SIDE VALIDATION
+    // SERVER-SIDE VALIDATION
+    // -------------------------
+
+    // note:  $errors[]. This is the array created above
+
+    // First name cannot be empty
+
+    if (empty($first_name)) {
+        $errors['first_name'] = "First name is required.";
+    }
+
+    // Last name cannot be empty
+    if (empty($last_name)) {
+        $errors['last_name'] = "Last name is required.";
+    }
+
+    // Email must exist AND be valid
+    if (empty($email)) {
+        $errors['email'] = "Email is required.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors['email'] = "Invalid email format.";
+    }
+
+    // Department must be selected
+    if (empty($department_id)) {
+        $errors['department'] = "Please select a department.";
+    }
+
+    // -------------------------
+    // INSERT DATA IF NO ERRORS
+    // INSERT DATA IF NO ERRORS
+    // INSERT DATA IF NO ERRORS
+    // INSERT DATA IF NO ERRORS
+    // -------------------------
+
+    // if our $errors[] array is empty (there are no errors) then submit:
+
+    if (empty($errors)) {
+
+        // Insert the person into tech282_names
+        // "prepare" creates a template SQL statement that MySQL can execute safely
+
+        // The $conn variable represents an active connection to the MySQL database, and the prepare() method tells the database to get ready to run the SQL query, but it does not execute it immediately:
+
+        $stmt = $conn->prepare(
+            "INSERT INTO tech282_names (first_name, last_name, email)
+             VALUES (?, ?, ?)"
+        );
+
+        // Next we "bind" PHP variables to the SQL statement’s placeholders, ie, (?, ?, ?) from above 
+
+        // the variables being bound here are $first_name, $last_name, $email
+
+        // "sss" = three strings, matching the order of ?, ?, ?
+
+        $stmt->bind_param("sss", $first_name, $last_name, $email);
+
+        // if I had another text field to add, like "favorite color", I'd add another s as a place holder to represent it, eg: 
+
+        //  $stmt->bind_param("ssss", $first_name, $last_name, $email, $favColor);
+
+        //note that if we do this, we have to adjust our SQL as well:
+
+        // $stmt = $conn->prepare(
+        // "INSERT INTO tech282_names (first_name, last_name, email, $favColor)
+        // VALUES (?, ?, ?, ?)"
+        // );
+
+        // by the way, we are still inside our "no errors" IF
+
+        /////////////////
+        /////////////////
+        /////////////////
+        /////////////////
+
+        // Execute the INSERT query
+        // Execute the INSERT query
+        // Execute the INSERT query
+        // Execute the INSERT query
+
+        //  fyi: $stmt is the variable created a few lines above which holds our call to the database and the SQL. Now that we have bound our variables to the SQL INSERT query, the insert can happen:
+
+        $stmt->execute(); // execute() is built into PHP
+
+        // GET THE INSERTED RECORD'S ID
+        // GET THE INSERTED RECORD'S ID
+        // GET THE INSERTED RECORD'S ID
+        // GET THE INSERTED RECORD'S ID
+
+        // This ID is needed for the relationships table:
+
+        $new_name_id = $conn->insert_id; // eg, $new_name_id = 25
+
+        // Here is where we do another INSERT, this time into the tech282_relationships table
+
+        // we have gotten the person's ID through the above step, as well as the ID for the department (from the dropdown)
+
+        // now we want to relate them
+
+        // Insert the relationship between person and department
+        // Insert the relationship between person and department
+        // Insert the relationship between person and department
+        // Insert the relationship between person and department
+
+        // as above we create a variable to hold the connection to the database and get the SQL INSERT ready:
+
+        $rel = $conn->prepare(
+            "INSERT INTO tech282_relationships
+             (relationships_id_names, relationships_id_department)
+             VALUES (?, ?)"
+        );
+
+        // run the INSERT
+        // run the INSERT
+        // run the INSERT
+        // run the INSERT
+
+        // NOTE: ii = integer, integer
+        // like sss above, ii tells the database to expect 2 integers, as opposed to 3 strings, as in the above example
+
+        $rel->bind_param("ii", $new_name_id, $department_id);
+        $rel->execute();
+
+        // Close statements to free memory
+        // Close statements to free memory
+        // Close statements to free memory
+        // Close statements to free memory
+
+        $rel->close(); // Frees memory used by $result
+        $stmt->close(); // Frees memory used by $result
+
+
+        // REDIRECT
+        // REDIRECT
+        // REDIRECT
+        // REDIRECT        
+
+        // Redirect prevents form resubmission on refresh
+
+        // header("Location: index.php") sends an HTTP header to the browser instructing it to navigate to index.php.
+
+        // header() sets raw HTTP headers before any page output.
+
+        // "Location: …" specifically triggers a redirect.
+
+        // Must be called before any HTML or echo statements.
+
+        // that's why our php is at the top
+
+        header("Location: index.php");
+        exit;
+    } // ends our IF (if array is empty)
+} // ends our IF (if ($_SERVER['REQUEST_METHOD'] === 'POST'))
+
+// -------------------------
+// HANDLE DELETE ACTION
+// HANDLE DELETE ACTION
+// HANDLE DELETE ACTION
+// HANDLE DELETE ACTION
+
+// Note: this runs when ?delete=ID appears in the URL
+// such as http://tech282.local:10048/final/index.php?delete=1
+
+if (isset($_GET['delete'])) {
+
+    // Convert the ID to an integer for safety
+    $delete_id = (int)$_GET['delete'];
+
+    // Delete the employee from tech282_names
+
+    // as above, we prepare a connectiob to the database as well as the SQL we we want it to run:
+
+    $stmt = $conn->prepare(
+        "DELETE FROM tech282_names WHERE tech282_names_id=?"
+    );
+
+    $stmt->bind_param("i", $delete_id);
+    $stmt->execute();
+    $stmt->close();
+
+    // Redirect back to the page after deletion
+    header("Location: index.php");
+    exit;
+} // ends IF (isset($_GET['delete']))
+
+// -------------------------
+// FETCH DEPARTMENTS
+// FETCH DEPARTMENTS
+// FETCH DEPARTMENTS
+// FETCH DEPARTMENTS
+
+// Used to populate the dropdown menu
+// -------------------------
+$departments = []; // empty array
+
+$result = $conn->query(
+    "SELECT tech282_department_id, tech282_department
+     FROM tech282_department
+     ORDER BY tech282_department"
+);
+
+// Store each department row in an array and loop through them
+while ($row = $result->fetch_assoc()) {
+    $departments[] = $row;
+}
+$result->free(); // release the memory associated with a result set obtained from a query
+
+// Note: "free" is not used for queries like INSERT, UPDATE, or DELETE that don’t return a result set. To close them we use close(), as above.
+
+// -------------------------
+// FETCH EMPLOYEES + DEPARTMENTS
+// FETCH EMPLOYEES + DEPARTMENTS
+// FETCH EMPLOYEES + DEPARTMENTS
+// FETCH EMPLOYEES + DEPARTMENTS
+
+// Uses the relationships table to connect names and departments
+// -------------------------
+
+$employees = []; // empty array, waiting for content
+
+// This query lists employees with their department names. 
+// tech282_names provides employee info, joined via tech282_relationships to tech282_department to get the department. 
+// ORDER BY last_name ASC sorts employees by last name ascending.
+
+$sql = "
+    SELECT
+        tech282_names.tech282_names_id,
+        first_name,
+        last_name,
+        email,
+        tech282_department.tech282_department
+    FROM tech282_names
+    INNER JOIN tech282_relationships
+        ON tech282_names.tech282_names_id =
+           tech282_relationships.relationships_id_names
+    INNER JOIN tech282_department
+        ON tech282_relationships.relationships_id_department =
+           tech282_department.tech282_department_id
+    ORDER BY last_name ASC
+";
+
+$result = $conn->query($sql);
+
+// Store each employee record in an array
+while ($row = $result->fetch_assoc()) {
+    $employees[] = $row;
+}
+$result->free(); // again, it is free() and not close() because we are only READING from the database, the R in CRUD.
+?>
+
+<!-- CREATE HTML -->
+<!-- CREATE HTML -->
+<!-- CREATE HTML -->
+<!-- CREATE HTML -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Employees App</title>
+
+    <style>
+        .error {
+            color: red;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 6px;
+            padding: .3rem;
+        }
+
+        li:nth-child(odd) {
+            background-color: #ccc;
+        }
+
+        button {
+            margin: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Add Employee</h2>
+
+    <form method="post" action="">
+
+        <!-- FIRST NAME FIELD -->
+        <label>
+            First Name:
+            <input type="text" name="first_name"
+                value="<?= htmlspecialchars($first_name) ?>">
+            <?php if (isset($errors['first_name'])): ?>
+                <span class="error"><?= $errors['first_name'] ?></span>
+            <?php endif; ?>
+        </label>
+
+        <!-- LAST NAME FIELD -->
+        <label>
+            Last Name:
+            <input type="text" name="last_name"
+                value="<?= htmlspecialchars($last_name) ?>">
+            <?php if (isset($errors['last_name'])): ?>
+                <span class="error"><?= $errors['last_name'] ?></span>
+            <?php endif; ?>
+        </label>
+
+        <!-- EMAIL FIELD -->
+        <label>
+            Email:
+            <input type="email" name="email"
+                value="<?= htmlspecialchars($email) ?>">
+            <?php if (isset($errors['email'])): ?>
+                <span class="error"><?= $errors['email'] ?></span>
+            <?php endif; ?>
+        </label>
+
+        <!-- DEPARTMENT DROPDOWN -->
+        <label>
+            Department:
+
+            <!-- CREATE SELECT DROPDOWN-->
+
+            <select name="department">
+                <option value="">-- Select Department --</option>
+                <?php foreach ($departments as $dept): ?>
+                    <option value="<?= $dept['tech282_department_id'] ?>"
+                        <?= ($department_id == $dept['tech282_department_id']) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($dept['tech282_department']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <?php if (isset($errors['department'])): ?>
+                <span class="error"><?= $errors['department'] ?></span>
+            <?php endif; ?>
+        </label>
+
+        <button type="submit">Add Employee</button>
+    </form>
+
+    <h2>Employees List</h2>
+
+    <ul>
+        <?php foreach ($employees as $emp): ?>
+            <li>
+                <!-- Displays last name, first name, email, and department -->
+
+                <!-- htmlspecialchars() is a PHP function that converts special characters in a string to HTML entities.
+
+                It prevents HTML injection or cross-site scripting (XSS) by making characters like <, >, &, and " safe to display in HTML. -->
+
+                <?php echo htmlspecialchars($emp['last_name'] . ", " . $emp['first_name']) . ' - ';
+                echo htmlspecialchars($emp['email']); ?>
+
+                <p>Job =
+                    <?php echo htmlspecialchars($emp['tech282_department']); ?>
+                </p>
+
+                <!-- Delete link passes the employee ID via GET -->
+                <a href="?delete=<?php echo $emp['tech282_names_id']; ?>"
+                    onclick="return confirm('Are you sure?')">Delete</a>
+            </li>
+
+        <?php endforeach; ?>
+    </ul>
+
+</body>
+
+</html>
