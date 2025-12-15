@@ -1,0 +1,168 @@
+<?php
+require 'db/db.php';
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+$first_name = "";
+$last_name  = "";
+$email      = "";
+$department_id = "";
+$errors = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $first_name = trim($_POST['first_name']);
+    $last_name  = trim($_POST['last_name']);
+    $email      = trim($_POST['email']);
+    $department_id = $_POST['department'] ?? '';
+
+    if (empty($first_name)) {
+        $errors['first_name'] = "First name is required.";
+    }
+    if (empty($last_name)) {
+        $errors['last_name'] = "Last name is required.";
+    }
+    if (empty($email)) {
+        $errors['email'] = "Email is required.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors['email'] = "Invalid email format.";
+    }
+    if (empty($department_id)) {
+        $errors['department'] = "Please select a department.";
+    }
+
+    if (empty($errors)) {
+        $stmt = $conn->prepare(
+            "INSERT INTO tech282_names (first_name, last_name, email)
+             VALUES (?, ?, ?)"
+        );
+        $stmt->bind_param("sss", $first_name, $last_name, $email);
+        $stmt->execute();
+        $new_name_id = $conn->insert_id;
+
+        $rel = $conn->prepare(
+            "INSERT INTO tech282_relationships
+             (relationships_id_names, relationships_id_department)
+             VALUES (?, ?)"
+        );
+        $rel->bind_param("ii", $new_name_id, $department_id);
+        $rel->execute();
+        $rel->close();
+        $stmt->close();
+
+        header("Location: index.php");
+        exit;
+    }
+}
+
+if (isset($_GET['delete'])) {
+    $delete_id = (int)$_GET['delete'];
+    $stmt = $conn->prepare(
+        "DELETE FROM tech282_names WHERE tech282_names_id=?"
+    );
+    $stmt->bind_param("i", $delete_id);
+    $stmt->execute();
+    $stmt->close();
+    header("Location: index.php");
+    exit;
+}
+
+$departments = [];
+$result = $conn->query(
+    "SELECT tech282_department_id, tech282_department
+     FROM tech282_department
+     ORDER BY tech282_department"
+);
+while ($row = $result->fetch_assoc()) {
+    $departments[] = $row;
+}
+$result->free();
+
+$employees = [];
+$sql = "
+    SELECT
+        tech282_names.tech282_names_id,
+        first_name,
+        last_name,
+        email,
+        tech282_department.tech282_department
+    FROM tech282_names
+    INNER JOIN tech282_relationships
+        ON tech282_names.tech282_names_id =
+           tech282_relationships.relationships_id_names
+    INNER JOIN tech282_department
+        ON tech282_relationships.relationships_id_department =
+           tech282_department.tech282_department_id
+    ORDER BY last_name ASC
+";
+$result = $conn->query($sql);
+while ($row = $result->fetch_assoc()) {
+    $employees[] = $row;
+}
+$result->free();
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Employees App</title>
+    <style>
+        .error { color: red; }
+        label { display: block; margin-top: 10px; }
+        ul { list-style: none; padding: 0; }
+        li { margin-bottom: 6px; padding: .3rem; }
+        li:nth-child(odd) { background-color: #ccc; }
+        button { margin: 1rem; }
+    </style>
+</head>
+<body>
+    <h2>Add Employee</h2>
+    <form method="post" action="">
+        <label>
+            First Name:
+            <input type="text" name="first_name" value="<?= htmlspecialchars($first_name) ?>">
+            <?php if (isset($errors['first_name'])): ?>
+                <span class="error"><?= $errors['first_name'] ?></span>
+            <?php endif; ?>
+        </label>
+        <label>
+            Last Name:
+            <input type="text" name="last_name" value="<?= htmlspecialchars($last_name) ?>">
+            <?php if (isset($errors['last_name'])): ?>
+                <span class="error"><?= $errors['last_name'] ?></span>
+            <?php endif; ?>
+        </label>
+        <label>
+            Email:
+            <input type="email" name="email" value="<?= htmlspecialchars($email) ?>">
+            <?php if (isset($errors['email'])): ?>
+                <span class="error"><?= $errors['email'] ?></span>
+            <?php endif; ?>
+        </label>
+        <label>
+            Department:
+            <select name="department">
+                <option value="">-- Select Department --</option>
+                <?php foreach ($departments as $dept): ?>
+                    <option value="<?= $dept['tech282_department_id'] ?>" <?= ($department_id == $dept['tech282_department_id']) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($dept['tech282_department']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <?php if (isset($errors['department'])): ?>
+                <span class="error"><?= $errors['department'] ?></span>
+            <?php endif; ?>
+        </label>
+        <button type="submit">Add Employee</button>
+    </form>
+
+    <h2>Employees List</h2>
+    <ul>
+        <?php foreach ($employees as $emp): ?>
+            <li>
+                <?= htmlspecialchars($emp['last_name'] . ", " . $emp['first_name']) . ' - ' . htmlspecialchars($emp['email']); ?>
+                <p>Job = <?= htmlspecialchars($emp['tech282_department']); ?></p>
+                <a href="?delete=<?= $emp['tech282_names_id']; ?>" onclick="return confirm('Are you sure?')">Delete</a>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+</body>
+</html>
